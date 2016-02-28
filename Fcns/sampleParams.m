@@ -2,10 +2,7 @@ function [trials, mcmc, params]  = sampleParams(trace,tau, Tguess,params)
 %parameters
 %noise level here matters for the proposal distribution (how much it 
 %should trust data for proposals vs how much it should mix based on uniform prior)
-%this is accounted for by calciumNoiseVar
 NoiseVar_init=5; %inial noise estimate
-% p_spike=1/40;%what percent of the bins hacve a spike in then
-% p_spike=1/100000000000000000000000000000000;%what percent of the bins hacve a spike in then
 p_spike=params.p_spike;
 proposalVar=100000;%likeliness to accept moves
 nsweeps=200; %number of sweeps of sampler
@@ -24,17 +21,16 @@ b_std = .3; %propasal variance of baseline
 b_min = 0;
 b_max = 30;
 exclusion_bound = 1;%dont let bursts get within x bins of eachother. this should be in time
-% maxNbursts = 3;%if we want to add bursts, whats the maximum bnumber that we will look for?
 
 Dt=1; %bin unit - don't change this
-% A=400; % scale factor for all magnitudes for this calcium data setup
-A=1; % scale factor for all magnitudes for this calcium data setup
+A=1; % scale factor for all magnitudes
 b=median(trace); %initial baseline value
 nu_0 = 5; %prior on shared burst time - ntrials
 sig2_0 = .1; %prior on shared burst time - variance
 
 adddrop = 5;
-% maxNbursts = length(Tguess);
+
+%if we want to add bursts, whats the maximum bnumber that we will look for?
 maxNbursts = length(Tguess) + 8;
 maxNbursts = Inf;
 
@@ -56,13 +52,13 @@ samples_tau = cell(1,nsweeps);
 N_sto = [];
 objective = [];
 
-NoiseVar = NoiseVar_init; %separate calcium per trial
+NoiseVar = NoiseVar_init; %separate trace per trial
 baseline = b;
 
-% intiailize burst train and predicted calcium
+% intiailize burst train and predicted trace
 %this is based on simply what we tell it. 
 
-%initialize spikes and calcium
+%initialize spikes and trace
 ati = []; % array of lists of spike times
 sti = []; % array of lists of spike times
 sti_ = []; % array of lists of spike times
@@ -70,16 +66,16 @@ taus = cell(1); % array of lists of event taus
 
 efs = cell(1,length(Tguess));
 
-pr = b*ones(1,nBins); %initial calcium is set to baseline 
+pr = b*ones(1,nBins); %initialize to baseline 
 
 N = length(sti); %number of spikes in spiketrain
 
-%initial logC - compute likelihood initially completely - updates to likelihood will be local
-logC = sum(-(pr-trace).^2); 
+%initial logE - compute likelihood initially completely - updates to likelihood will be local
+logE = sum(-(pr-trace).^2); 
 
 m = p_spike*nBins;
 
-logC_ = logC;
+logE_ = logE;
 for i = 1:length(Tguess)
     efs{i} = ef;
     tmpi = Tguess(i); 
@@ -88,7 +84,7 @@ for i = 1:length(Tguess)
     pr_ = pr;
     ati_ = ati;
     a_init = max(trace(tmpi)/A,a_min);
-    [sti_, pr_, logC_] = addSpike(sti,pr,logC_,efs{i},a_init,tau,trace,tmpi, N+1, Dt, A); %adds all trials' spikes at same time
+    [sti_, pr_, logE_] = addSpike(sti,pr,logE_,efs{i},a_init,tau,trace,tmpi, N+1, Dt, A); %adds all trials' spikes at same time
     taus{i} = tau;
     ati_ = [ati_ a_init];
     ati = ati_;
@@ -96,10 +92,10 @@ for i = 1:length(Tguess)
     pr = pr_;
     N = length(sti); %number of spikes in spiketrain
 end
-logC = logC_;
+logE = logE_;
 
 sti_= sti;
-logC_= logC;
+logE_= logE;
 N=length(sti);
 
 %% loop over sweeps to generate samples
@@ -136,25 +132,25 @@ for i = 1:nsweeps
             end
 
             %create the proposal si_ and pr_
-            %update logC_ to adjusted
-            [si_, pr_, logC_] = removeSpike(si,pr,logC,efs{ni},ai(ni),taus{ni},trace,tmpi,ni, Dt, A);
-            [si_, pr_, logC_] = addSpike(si_,pr_,logC_,efs{ni},ai(ni),taus{ni},trace,tmpi_,ni, Dt, A);
+            %update logE_ to adjusted
+            [si_, pr_, logE_] = removeSpike(si,pr,logE,efs{ni},ai(ni),taus{ni},trace,tmpi,ni, Dt, A);
+            [si_, pr_, logE_] = addSpike(si_,pr_,logE_,efs{ni},ai(ni),taus{ni},trace,tmpi_,ni, Dt, A);
 
             %accept or reject
             %for prior: (1) use ratio or(2) set prior to 1.
             prior_ratio = 1;
 
-            ratio = exp(sum((1/(2*NoiseVar))*(logC_-logC)))*prior_ratio;
+            ratio = exp(sum((1/(2*NoiseVar))*(logE_-logE)))*prior_ratio;
             if ratio>1 %accept
                 si = si_;
                 pr = pr_;
-                logC = logC_;
+                logE = logE_;
                 timeMoves = timeMoves + [1 1];
                 proposalVar = proposalVar + 2*.1*rand*proposalVar/sqrt(i);
             elseif rand<ratio %accept
                 si = si_;
                 pr = pr_;
-                logC = logC_;
+                logE = logE_;
                 timeMoves = timeMoves + [1 1];
                 proposalVar = proposalVar + 2*.1*rand*proposalVar/sqrt(i);
             else
@@ -183,28 +179,28 @@ for i = 1:nsweeps
                 end
             end
 
-            %set si_ to set of bursts with the move and pr_ to adjusted calcium and update logC_ to adjusted
-            [si_, pr_, logC_] = removeSpike(si,pr,logC,efs{ni},ai(ni),taus{ni},trace,si(ni),ni, Dt, A);
-            [si_, pr_, logC_] = addSpike(si_,pr_,logC_,efs{ni},tmp_a_,taus{ni},trace,si(ni),ni, Dt, A);
+            %set si_ to set of bursts with the move and pr_ to adjusted trace and update logE_ to adjusted
+            [si_, pr_, logE_] = removeSpike(si,pr,logE,efs{ni},ai(ni),taus{ni},trace,si(ni),ni, Dt, A);
+            [si_, pr_, logE_] = addSpike(si_,pr_,logE_,efs{ni},tmp_a_,taus{ni},trace,si(ni),ni, Dt, A);
 
             ai_ = ai;
             ai_(ni) = tmp_a_;
 
             %accept or reject - include a prior?
             prior_ratio = 1;
-            ratio = exp(sum((1/(2*NoiseVar))*(logC_-logC)))*prior_ratio;
+            ratio = exp(sum((1/(2*NoiseVar))*(logE_-logE)))*prior_ratio;
             if ratio>1 %accept
                 ai = ai_;
                 si = si_;
                 pr = pr_;
-                logC = logC_;
+                logE = logE_;
                 ampMoves = ampMoves + [1 1];
                 a_std = a_std + 2*.1*rand*a_std/sqrt(i);
             elseif rand<ratio %accept
                 ai = ai_;
                 si = si_;
                 pr = pr_;
-                logC = logC_;
+                logE = logE_;
                 ampMoves = ampMoves + [1 1];
                 a_std = a_std + 2*.1*rand*a_std/sqrt(i);
             else
@@ -230,22 +226,22 @@ for i = 1:nsweeps
             end
         end
 
-        %set si_ to set of bursts with the move and pr_ to adjusted calcium and update logC_ to adjusted
-        [pr_, logC_] = remove_base(pr,logC,tmp_b,trace,A);   
-        [pr_, logC_] = add_base(pr_,logC_,tmp_b_,trace,A);
+        %set si_ to set of bursts with the move and pr_ to adjusted trace and update logE_ to adjusted
+        [pr_, logE_] = remove_base(pr,logE,tmp_b,trace,A);   
+        [pr_, logE_] = add_base(pr_,logE_,tmp_b_,trace,A);
 
         %accept or reject - include a prior?
         prior_ratio = 1;
-        ratio = exp(sum((1/(2*NoiseVar))*(logC_-logC)))*prior_ratio;
+        ratio = exp(sum((1/(2*NoiseVar))*(logE_-logE)))*prior_ratio;
         if ratio>1 %accept
             baseline = tmp_b_;
             pr = pr_;
-            logC = logC_;
+            logE = logE_;
             b_std = b_std + 2*.1*rand*b_std/sqrt(i);
         elseif rand<ratio %accept
             baseline = tmp_b_;
             pr = pr_;
-            logC = logC_;
+            logE = logE_;
             b_std = b_std + 2*.1*rand*b_std/sqrt(i);
         else
             b_std = b_std - .1*rand*b_std/sqrt(i);
@@ -270,31 +266,24 @@ for i = 1:nsweeps
             if ~(any(abs(tmpi-sti)<exclusion_bound) || N >= maxNbursts)
                 sti_ = [sti tmpi];
                 %must add burst to each trial (at mean location or sampled -- more appropriate if sampled, but make sure no trial's burst violates exclusion)
-                logC_ = logC;
+                logE_ = logE;
                 pr_ = pr;
                 ati_ = ati;
                 a_init = max(trace(max(1,floor(tmpi)))/A - baseline + a_std*randn,a_min);%propose an initial amplitude for it
-                [si_, pr_, logC_] = addSpike(sti,pr,logC_,ef_init,a_init,tau,trace,tmpi, N+1, Dt, A); %adds all trials' bursts at same time
+                [si_, pr_, logE_] = addSpike(sti,pr,logE_,ef_init,a_init,tau,trace,tmpi, N+1, Dt, A); %adds all trials' bursts at same time
                 sti_ = si_;
                 ati_ = [ati_ a_init];
                 fprob = 1/nBins(1);%forward probability
                 rprob = 1/(N+1);%reverse (remove at that spot) probability
                 %accept or reject
-%                 figure(120)
-%                 plot(trace)
-%                 hold on
-%                 plot(pr_,'r')
-%                 hold off
-%                 drawnow
-%                 pause
-                ratio = exp(sum((1./(2*NoiseVar)).*(logC_-logC)))*(rprob/fprob)*(m(1)/(nBins(1)-m(1))); %posterior times reverse prob/forward prob
+                ratio = exp(sum((1./(2*NoiseVar)).*(logE_-logE)))*(rprob/fprob)*(m(1)/(nBins(1)-m(1))); %posterior times reverse prob/forward prob
                 if (ratio>1)||(ratio>rand) %accept
                     ati = ati_;
                     sti = sti_;
                     pr = pr_;
                     taus{N+1} = tau;
                     efs{N+1} = ef_init;
-                    logC = logC_;
+                    logE = logE_;
                     addMoves = addMoves + [1 1];
                 else
                     %reject - do nothing
@@ -311,11 +300,11 @@ for i = 1:nsweeps
                 sti_ = sti;
                 sti_(tmpi) = [];
                 %must remove burst from each trial
-                logC_ = logC;
+                logE_ = logE;
                 pr_ = pr;
                 ati_ = ati;
                 %always remove the ith burst (the ith burst of each trial is linked)                     
-                [si_, pr_, logC_] = removeSpike(sti,pr,logC_,efs{tmpi},ati(tmpi),taus{tmpi},trace,sti(tmpi),tmpi, Dt, A);
+                [si_, pr_, logE_] = removeSpike(sti,pr,logE_,efs{tmpi},ati(tmpi),taus{tmpi},trace,sti(tmpi),tmpi, Dt, A);
                 sti_ = si_;
                 ati_(tmpi) = [];
 
@@ -327,14 +316,14 @@ for i = 1:nsweeps
 
                 %accept or reject
                 %posterior times reverse prob/forward prob
-                ratio = exp(sum((1./(2*NoiseVar)).*(logC_-logC)))*(rprob/fprob)*((nBins(1)-m(1))/m(1)); 
+                ratio = exp(sum((1./(2*NoiseVar)).*(logE_-logE)))*(rprob/fprob)*((nBins(1)-m(1))/m(1)); 
                 if (ratio>1)||(ratio>rand)%accept
                     ati = ati_;
                     sti = sti_;
                     pr = pr_;
                     taus(tmpi) = [];
                     efs(tmpi) = [];
-                    logC = logC_;
+                    logE = logE_;
                     dropMoves = dropMoves + [1 1]; 
                 else
                     %reject - do nothing
@@ -353,8 +342,6 @@ for i = 1:nsweeps
             % update both tau values
             tau_ = taus{ni};
             tau_(1) = tau_(1)+(tau1_std*randn); %with bouncing off min and max
-%             count1 = 0;
-%             count2 = 0;
            while tau_(1)>tau(2) || tau_(1)<tau_min
                 if tau_(1)<tau_min
                     tau_(1) = tau_min+(tau_min-tau_(1));
@@ -366,25 +353,25 @@ for i = 1:nsweeps
             ef_ = genEfilt(tau_,fBins);%exponential filter
 
             %remove all old bumps and replace them with new bumps    
-            logC_ = logC;
+            logE_ = logE;
             pr_ = pr;
-            [~, pr_, logC_] = removeSpike(sti,pr_,logC_,efs{ni},ati(ni),taus{ni},trace,sti(ni),ni, Dt, A);
-            [~, pr_, logC_] = addSpike(sti,pr_,logC_,ef_,ati(ni),tau_,trace,sti(ni),ni, Dt, A);
+            [~, pr_, logE_] = removeSpike(sti,pr_,logE_,efs{ni},ati(ni),taus{ni},trace,sti(ni),ni, Dt, A);
+            [~, pr_, logE_] = addSpike(sti,pr_,logE_,ef_,ati(ni),tau_,trace,sti(ni),ni, Dt, A);
 
             %accept or reject
             prior_ratio = 1;
 %             prior_ratio = (gampdf(tau_(1),1.5,1))/(gampdf(tau(1),1.5,1));
-            ratio = exp(sum(sum((1./(2*NoiseVar)).*(logC_-logC))))*prior_ratio;
+            ratio = exp(sum(sum((1./(2*NoiseVar)).*(logE_-logE))))*prior_ratio;
             if ratio>1 %accept
                 pr = pr_;
-                logC = logC_;
+                logE = logE_;
                 taus{ni} = tau_;
                 efs{ni} = ef_;
                 tauMoves = tauMoves + [1 1];
 %                 tau1_std = tau1_std + 2*.1*rand*tau1_std/sqrt(i);
             elseif rand<ratio %accept
                 pr = pr_;
-                logC = logC_;
+                logE = logE_;
                 taus{ni} = tau_;
                 efs{ni} = ef_;
                 tauMoves = tauMoves + [1 1];
@@ -405,8 +392,6 @@ for i = 1:nsweeps
             % update both tau values
             tau_ = taus{ni};    
             tau_(2) = tau_(2)+(tau2_std*randn);
-%             count1 = 0;
-%             count2 = 0;
             while tau_(2)>tau_max || tau_(2)<tau_(1)
                 if tau_(2)<tau_(1)
                     tau_(2) = tau_(1)+(tau_(1)-tau_(2));
@@ -418,25 +403,25 @@ for i = 1:nsweeps
             ef_ = genEfilt(tau_,fBins);%exponential filter
 
             %remove all old bumps and replace them with new bumps    
-            logC_ = logC;
+            logE_ = logE;
             pr_ = pr;
-            [~, pr_, logC_] = removeSpike(sti,pr_,logC_,efs{ni},ati(ni),taus{ni},trace,sti(ni),ni, Dt, A);
-            [~, pr_, logC_] = addSpike(sti,pr_,logC_,ef_,ati(ni),tau_,trace,sti(ni),ni, Dt, A);
+            [~, pr_, logE_] = removeSpike(sti,pr_,logE_,efs{ni},ati(ni),taus{ni},trace,sti(ni),ni, Dt, A);
+            [~, pr_, logE_] = addSpike(sti,pr_,logE_,ef_,ati(ni),tau_,trace,sti(ni),ni, Dt, A);
 
             %accept or reject
             prior_ratio = 1;
 %             prior_ratio = gampdf(tau_(2),12,1)/gampdf(tau(2),12,1);
-            ratio = exp(sum(sum((1./(2*NoiseVar)).*(logC_-logC))))*prior_ratio;
+            ratio = exp(sum(sum((1./(2*NoiseVar)).*(logE_-logE))))*prior_ratio;
             if ratio>1 %accept
                 pr = pr_;
-                logC = logC_;
+                logE = logE_;
                 taus{ni} = tau_;
                 efs{ni} = ef_;
                 tauMoves = tauMoves + [1 1];
 %                 tau2_std = tau2_std + 2*.1*rand*tau2_std/sqrt(i);
             elseif rand<ratio %accept
                 pr = pr_;
-                logC = logC_;
+                logE = logE_;
                 taus{ni} = tau_;
                 efs{ni} = ef_;
                 tauMoves = tauMoves + [1 1];
@@ -467,10 +452,10 @@ for i = 1:nsweeps
     samples_a{i} = ati; %trial amplitudes
     samples_b{i} = baseline; %trial baselines
     samples_s{i} = sti; %shared bursts
-    samples_pr{i} = pr; %save calcium traces
+    samples_pr{i} = pr; %save predicted traces
     samples_tau{i} = taus; %save tau values
     %store overall logliklihood as well
-%     if abs(sum(logC)-sum(sum(-(pr)-cell2mat(trace)).^2)))>1
+%     if abs(sum(logE)-sum(sum(-(pr)-cell2mat(trace)).^2)))>1
 %         figure(90)
 %         subplot(121)
 %         plot(cell2mat(samples_c{i-1})')``
@@ -479,7 +464,7 @@ for i = 1:nsweeps
 %         keyboard
 %     end
 
-    objective = [objective logC];
+    objective = [objective logE];
 %     figure(10);
 %     plot(ci{1});hold on;
 %     plot(CaF{1},'r');hold off
@@ -487,7 +472,7 @@ for i = 1:nsweeps
 %         fprintf([num2str(indreport(ismember(indreporti,i)),2),', '])
 %     end
 end
-%% Vigi's Clean up
+
 %details about what the mcmc did
 %addMoves, dropMoves, and timeMoves give acceptance probabilities for each subclass of move
 mcmc.addMoves=addMoves;
@@ -521,7 +506,7 @@ params.b_min = b_min;
 params.b_max = b_max;
 params.exclusion_bound = exclusion_bound;
 params.Dt=Dt; %bin unit - don't change this
-params.A=A; % scale factor for all magnitudes for this calcium data setup
+params.A=A; % scale factor for all magnitudes
 params.b=b; %initial baseline value
 
 

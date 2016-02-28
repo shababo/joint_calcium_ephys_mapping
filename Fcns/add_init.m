@@ -1,4 +1,4 @@
-function [newCalcium, newLL] = add_init(oldCalcium,oldLL,filter,amp,tau,obsCalcium,Dt,A)
+function [newTrace, newLL] = add_init(oldTrace,oldLL,filter,amp,tau,obsTrace,Dt,A)
 
     timeToAdd = 0;
     
@@ -6,22 +6,19 @@ function [newCalcium, newLL] = add_init(oldCalcium,oldLL,filter,amp,tau,obsCalci
     
     ef_d = filter{2};
         
-    %use infinite precision to scale the precomputed FIR approximation to the calcium transient
+    %use infinite precision to scale the precomputed FIR approximation to the Trace transient
     wk_d = amp*A*exp((timeToAdd - Dt*ceil(timeToAdd/Dt))/tau_d);
     
-%     %%%%%%%%%%%%%%%%%
-    newCalcium = oldCalcium;
-%     %%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%
+    newTrace = oldTrace;
+    %%%%%%%%%%%%%%%%%
     
     %%%%%%%%%%%%%%%%%
     %handle ef_d 
-    tmp = 1 + (floor(timeToAdd):min((length(ef_d)+floor(timeToAdd)-1),length(newCalcium)-1));
-    newCalcium(tmp) = newCalcium(tmp) + wk_d*ef_d(1:length(tmp));
+    tmp = 1 + (floor(timeToAdd):min((length(ef_d)+floor(timeToAdd)-1),length(newTrace)-1));
+    newTrace(tmp) = newTrace(tmp) + wk_d*ef_d(1:length(tmp));
     
-%     %if you really want to, ef*ef' could be precomputed and passed in
-%     relevantResidual = obsCalcium(tmp)-oldCalcium(tmp);
-%     newLL = oldLL - ( wk_d^2*norm(ef_d(1:length(tmp)))^2 - 2*relevantResidual*(wk_d*ef_d(1:length(tmp))'));
     %%%%%%%%%%%%%%%%%
     
     
-    newLL = -sum((newCalcium-obsCalcium).^2);
+    newLL = -sum((newTrace-obsTrace).^2);

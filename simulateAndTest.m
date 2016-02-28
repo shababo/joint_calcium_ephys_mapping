@@ -117,14 +117,14 @@ T_post = T*binSize/binSize_post;
 tau_r_post = .5; %ms
 tau_f_post = 1; %ms
 baseline_post = 20;
-A_post = 4; %magnitude scale of spike response %was 100, for previous
+A_post = 4; %magnitude scale of spike response
 Dt = 1;
 
 V = baseline_post*ones(K,T_post);
 
 % noise process params
 p = 2;
-phi = [1, .3, .35]; %this is what Ben suggests (with noise scale 2.0)
+phi = [1, .3, .35]; %reasonable example
 v_noise = 2; 
 U = v_noise*randn(T_post,1);
 er = zeros(T_post,1);

@@ -4,9 +4,7 @@ function [trials, mcmc, params]  = sampleParams_ARnoise_splittau(trace,tau, Tgue
 
 %noise level here matters for the proposal distribution (how much it 
 %should trust data for proposals vs how much it should mix based on uniform prior)
-%this is accounted for by calciumNoiseVar
 NoiseVar_init=5; %inial noise estimate
-% p_spike=1/40;%what percent of the bins hacve a spike in then
 p_spike=params.p_spike;
 proposalVar=10;
 nsweeps=1000; %number of sweeps of sampler
@@ -27,11 +25,9 @@ b_std = 2; %propasal variance of baseline  % was at 0.3 ... increased it for in 
 b_min = -50;
 b_max = 50;
 exclusion_bound = 1;%dont let bursts get within x bins of eachother. this should be in time
-% maxNbursts = 3;%if we want to add bursts, whats the maximum bnumber that we will look for?
 
 Dt=1; %bin unit - don't change this
-% A=400; % scale factor for all magnitudes for this calcium data setup
-A=1; % scale factor for all magnitudes for this calcium data setup
+A=1; % scale factor for all magnitudes for this trace data setup
 % b=0; %initial baseline value
 b=min(trace); %initial baseline value
 nu_0 = 5; %prior on shared burst time - ntrials
@@ -48,6 +44,7 @@ phi_0 = zeros(p,1);
 Phi_0 = 10*eye(p); %inverse covariance 3
 
 adddrop = 5;
+%if we want to add bursts, whats the maximum bnumber that we will look for?
 % maxNbursts = length(Tguess);
 maxNbursts = Inf;
 
@@ -71,13 +68,13 @@ samples_noise = cell(1,nsweeps);
 N_sto = [];
 objective = [];
 
-NoiseVar = NoiseVar_init; %separate calcium per trial
+NoiseVar = NoiseVar_init; %separate trace per trial
 baseline = b;
 
-% intiailize burst train and predicted calcium
+% intiailize burst train and predicted trace
 %this is based on simply what we tell it. 
 
-%initialize spikes and calcium
+%initialize spikes and trace
 ati = []; % array of lists of spike times
 sti = []; % array of lists of spike times
 sti_ = []; % array of lists of spike times
@@ -86,11 +83,11 @@ phi = [1 zeros(1,p)];
 
 efs = cell(1,length(Tguess));
 
-pr = b*ones(1,nBins); %initial calcium is set to baseline 
+pr = b*ones(1,nBins); %initial trace is set to baseline 
 
 N = length(sti); %number of spikes in spiketrain
 
-%initial logC - compute likelihood initially completely - updates to likelihood will be local
+%initial logE - compute likelihood initially completely - updates to likelihood will be local
 %for AR(p) noise, we need a different difference inside the likelihood
 diffY = (trace-pr); %trace - prediction
 
@@ -153,7 +150,7 @@ for i = 1:nsweeps
             end
 
             %create the proposal si_ and pr_
-            %update logC_ to adjusted
+            %update logE_ to adjusted
             [si_, pr_, diffY_] = removeSpike_ar(si,pr,diffY,efs{ni},ai(ni),taus{ni},trace,tmpi,ni, Dt, A);
             [si_, pr_, diffY_] = addSpike_ar(si_,pr_,diffY_,efs{ni},ai(ni),taus{ni},trace,tmpi_,ni, Dt, A);
 
@@ -200,7 +197,7 @@ for i = 1:nsweeps
                 end
             end
 
-            %set si_ to set of bursts with the move and pr_ to adjusted calcium and update logC_ to adjusted
+            %set si_ to set of bursts with the move and pr_ to adjusted trace and update logE_ to adjusted
             [si_, pr_, diffY_] = removeSpike_ar(si,pr,diffY,efs{ni},ai(ni),taus{ni},trace,si(ni),ni, Dt, A);
             [si_, pr_, diffY_] = addSpike_ar(si_,pr_,diffY_,efs{ni},tmp_a_,taus{ni},trace,si(ni),ni, Dt, A);
 
@@ -247,7 +244,7 @@ for i = 1:nsweeps
             end
         end
 
-        %set si_ to set of bursts with the move and pr_ to adjusted calcium and update logC_ to adjusted
+        %set si_ to set of bursts with the move and pr_ to adjusted trace and update logE_ to adjusted
         [pr_, diffY_] = remove_base_ar(pr,diffY,tmp_b,trace,A);   
         [pr_, diffY_] = add_base_ar(pr_,diffY_,tmp_b_,trace,A);
 
@@ -295,13 +292,6 @@ for i = 1:nsweeps
                 fprob = 1/nBins(1);%forward probability
                 rprob = 1/(N+1);%reverse (remove at that spot) probability
                 %accept or reject
-%                 figure(120)
-%                 plot(trace)
-%                 hold on
-%                 plot(pr_,'r')
-%                 hold off
-%                 drawnow
-%                 pause
                 ratio = exp(sum((1./(2*NoiseVar)).*( predAR(diffY_,phi,p,1) - predAR(diffY,phi,p,1) )))*(rprob/fprob)*(m(1)/(nBins(1)-m(1))); %posterior times reverse prob/forward prob
                 if (ratio>1)||(ratio>rand) %accept
                     ati = ati_;
@@ -509,9 +499,6 @@ for i = 1:nsweeps
         A_samp = 0.5 * (df + nu0); %nu0 is prior
         B_samp = 1/(0.5 * df * (d1 + d0)); %d0 is prior
         NoiseVar = 1/gamrnd(A_samp,B_samp); %this could be inf but it shouldn't be
-%         if ~isfinite(NoiseVar)
-%             keyboard
-%         end
     end
 
     
@@ -523,12 +510,12 @@ for i = 1:nsweeps
     samples_a{i} = ati; %trial amplitudes
     samples_b{i} = baseline; %trial baselines
     samples_s{i} = sti; %shared bursts
-    samples_pr{i} = pr; %save calcium traces
+    samples_pr{i} = pr; %save traces
     samples_tau{i} = taus; %save tau values
     samples_phi{i} = phi;
     samples_noise{i} = NoiseVar;
     %store overall logliklihood as well
-%     if abs(sum(logC)-sum(sum(-(pr)-cell2mat(trace)).^2)))>1
+%     if abs(sum(logE)-sum(sum(-(pr)-cell2mat(trace)).^2)))>1
 %         figure(90)
 %         subplot(121)
 %         plot(cell2mat(samples_c{i-1})')
@@ -548,7 +535,6 @@ for i = 1:nsweeps
     end
 end
 
-%% Vigi's Clean up
 %details about what the mcmc did
 %addMoves, dropMoves, and timeMoves give acceptance probabilities for each subclass of move
 mcmc.addMoves=addMoves;
@@ -586,7 +572,7 @@ params.b_min = b_min;
 params.b_max = b_max;
 params.exclusion_bound = exclusion_bound;
 params.Dt=Dt; %bin unit - don't change this
-params.A=A; % scale factor for all magnitudes for this calcium data setup
+params.A=A; % scale factor for all magnitudes for this trace data setup
 params.b=b; %initial baseline value
 params.p_spike = p_spike;
 params.p = p;

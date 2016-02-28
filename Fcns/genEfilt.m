@@ -1,13 +1,5 @@
 function ef=genEfilt(tau,T)
-% compute exponential filter(s)
-%random stuff?
-% D = 1;
-% p1 = exp(D*-1/tau(1));
-% p2 = exp(D*-1/tau(2));
-% gamma_1 = p1+p2;
-% gamma_2 = -p1*p2;
 
-%% new way
 ef_d = exp(-(0:T)/tau(2));
 
 ef_h = -exp(-(0:T)/tau(1));

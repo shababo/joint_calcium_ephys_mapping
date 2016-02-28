@@ -245,10 +245,6 @@ for i = 1:nsweeps
                 [ssi_, ci_, logC_(ki)] = removeSpike(ssi,c(ki,:),logC(ki),efs_c{ki},a_c{ki}(ti),taus_c{ki},traces_c(ki,:),tmpi,ti, Dt, A, tmpi);
                 [ssi_, ci_, logC_(ki)] = addSpike(ssi_,ci_,logC_(ki),efs_c{ki},a_c{ki}(ti),taus_c{ki},traces_c(ki,:),tmpi_,ti, Dt, A, tmpi_);
                 
-%                 if any((ci_+1e-6)<baseline_c(ki))
-%                     keyboard
-%                 end
-                
                 %proposal for voltage
                 [ssi_b, vi_, diff_v_] = removeSpike_ar(ssi,v(ki,:),diff_v,efs_v{ki},a_v(ki),taus_v{ki},trace_v,conversion_ratio*tmpi,ti, Dt, A, baseline_v + v_alt + sum(v)-v(ki,:));
                 [ssi_b, vi_, diff_v_] = addSpike_ar(ssi_b,vi_,diff_v_,efs_v{ki},a_v(ki),taus_v{ki},trace_v,conversion_ratio*tmpi_,ti, Dt, A, baseline_v + v_alt + sum(v)-v(ki,:));
@@ -317,12 +313,6 @@ for i = 1:nsweeps
             [sti_, vi_, diff_v_] = removeSpike_ar(sti,v_alt,diff_v,efs_alt{ti},ati(ti),taus_alt{ti},trace_v,conversion_ratio*tmpi,ti, Dt, A, baseline_v + sum(v));
             [sti_, vi_, diff_v_] = addSpike_ar(sti_,vi_,diff_v_,efs_alt{ti},ati(ti),taus_alt{ti},trace_v,conversion_ratio*tmpi_,ti, Dt, A, baseline_v + sum(v));
             
-%             if any(vi_<-1e-4)
-%             figure(100)
-%             plot(vi_)
-%             keyboard
-%             end
-            
             %accept or reject
             %for prior: (1) use ratio or(2) set prior to 1.
             prior_ratio = 1;
@@ -388,10 +378,6 @@ for i = 1:nsweeps
                     %proposal for calcium
                     [si_, ci_, logC_(ki)] = removeSpike(si_,ci_,logC_(ki),efs_c{ki},ai(ti),taus_c{ki},traces_c(ki,:),si(ti),ti, Dt, A, si(ti));
                     [si_, ci_, logC_(ki)] = addSpike(si_,ci_,logC_(ki),efs_c{ki},tmp_a_,taus_c{ki},traces_c(ki,:),si(ti),ti, Dt, A, si(ti));
-
-%                     if any((ci_+1e-6)<baseline_c(ki))
-%                     keyboard
-%                     end
                 
                     ai_(ti) = tmp_a_;
 
@@ -504,12 +490,6 @@ for i = 1:nsweeps
 
             [si_, vi_, diff_v_] = removeSpike_ar(si,v_alt,diff_v,efs_alt{ti},ati(ti),taus_alt{ti},trace_v,si(ti),ti, Dt, A, baseline_v + sum(v));
             [si_, vi_, diff_v_] = addSpike_ar(si_,vi_,diff_v_,efs_alt{ti},tmp_a_,taus_alt{ti},trace_v,si(ti),ti, Dt, A, baseline_v + sum(v));
-
-%             if any(vi_<-1e-6)
-%             figure(100)
-%             plot(vi_)
-%             keyboard
-%             end
             
             %accept or reject - include a prior?
             prior_ratio = 1;
@@ -644,10 +624,6 @@ for i = 1:nsweeps
                         a_init = a_c{ki}(1);
                     end
                     [ssi_, ci_, logC_(ki)] = addSpike(Spk{ki},c(ki,:),logC(ki),efs_c{ki},a_init,taus_c{ki},traces_c(ki,:),tmpi,N(ki)+1, Dt, A, tmpi);
-
-%                     if any((ci_+1e-6)<baseline_c(ki))
-%                     keyboard
-%                     end
                 
                     %proposal for voltage
                     [~, vi_, diff_v_] = addSpike_ar(Spk{ki},v(ki,:),diff_v,efs_v{ki},a_v(ki),taus_v{ki},trace_v,conversion_ratio*tmpi,N(ki)+1, Dt, A, baseline_v + v_alt + sum(v)-v(ki,:));
@@ -685,16 +661,11 @@ for i = 1:nsweeps
                  
                     %proposal for calcium
                     [ssi_, ci_, logC_(ki)] = removeSpike(Spk{ki},c(ki,:),logC(ki),efs_c{ki},a_c{ki}(tmpi),taus_c{ki},traces_c(ki,:),Spk{ki}(tmpi),tmpi, Dt, A, Spk{ki}(tmpi));
-
-%                     if any((ci_+1e-6)<baseline_c(ki))
-%                     keyboard
-%                     end
                 
                     %proposal for voltage
                     [~, vi_, diff_v_] = removeSpike_ar(Spk{ki},v(ki,:),diff_v,efs_v{ki},a_v(ki),taus_v{ki},trace_v,conversion_ratio*Spk{ki}(tmpi),tmpi, Dt, A, baseline_v + v_alt + sum(v)-v(ki,:));
 
                     %accept or reject     
-%                     prior_ratio = (m)/(N(ki)+1); %poisson prior
                     prior_ratio = (m)/(Nv+1); %poisson prior on post-synapse.
                     ratio_v = exp(sum((1/(2*vNoiseVar))*( predAR(diff_v_,phi,p,1) - predAR(diff_v,phi,p,1) )));   
                     ratio_c = exp(sum((1/(2*cNoiseVar(ki)))*(logC_(ki)-logC(ki))));
@@ -728,12 +699,6 @@ for i = 1:nsweeps
             if ~(any(abs(tmpi-sti)<exclusion_bound) || N_alt >= maxNbursts)
                 [si_, vi_, diff_v_] = addSpike_ar(sti,v_alt,diff_v,ef_v_init,a_v_init,tau_v,trace_v,conversion_ratio*tmpi,N_alt+1, Dt, A, baseline_v + sum(v));
                 ati_ = [ati a_v_init];
-
-%                 if any(vi_<-1e-6)
-%                 figure(100)
-%                 plot(vi_)
-%                 keyboard
-%                 end
             
                 prior_ratio = (m)/(Nv+1); %poisson prior on post-synapse.
                 ratio_v = exp(sum((1/(2*vNoiseVar))*( predAR(diff_v_,phi,p,1) - predAR(diff_v,phi,p,1) )));   
@@ -759,12 +724,6 @@ for i = 1:nsweeps
                 tmpi = randi(N_alt);%pick one of the spikes at random
                 %always remove the ith burst (the ith burst of each trial is linked)                     
                 [si_, vi_, diff_v_] = removeSpike_ar(sti,v_alt,diff_v,efs_alt{tmpi},ati(tmpi),taus_alt{tmpi},trace_v,sti(tmpi),tmpi, Dt, A, baseline_v + sum(v));
-                
-%                 if any(vi_<-1e-6)
-%                 figure(100)
-%                 plot(vi_)
-%                 keyboard
-%                 end
             
                 %accept or reject
                 %posterior times reverse prob/forward prob
@@ -830,10 +789,6 @@ for i = 1:nsweeps
                     [si_, ci_, logC_ki] = removeSpike(si_,ci_,logC_ki,efs_c{ki},a_c{ki}(ti),taus_c{ki},traces_c(ki,:),si(ti),ti, Dt, A, si(ti));
                     [si_, ci_, logC_ki] = addSpike(si_,ci_,logC_ki,ef_,a_c{ki}(ti),tau_,traces_c(ki,:),si(ti),ti, Dt, A, si(ti));
                 end
-
-%                 if any((ci_+1e-6)<baseline_c(ki))
-%                     keyboard
-%                 end
                 
                 %accept or reject
                 prior_ratio = 1;
@@ -890,10 +845,6 @@ for i = 1:nsweeps
                     [si_, ci_, logC_ki] = removeSpike(si_,ci_,logC_ki,efs_c{ki},a_c{ki}(ti),taus_c{ki},traces_c(ki,:),si(ti),ti, Dt, A, si(ti));
                     [si_, ci_, logC_ki] = addSpike(si_,ci_,logC_ki,ef_,a_c{ki}(ti),tau_,traces_c(ki,:),si(ti),ti, Dt, A, si(ti));
                 end
-
-%                 if any((ci_+1e-6)<baseline_c(ki))
-%                     keyboard
-%                 end
                 
                 %accept or reject
                 prior_ratio = 1;
@@ -1065,11 +1016,6 @@ for i = 1:nsweeps
                 [si_, vi_, diff_v_] = removeSpike_ar(sti,v_alt,diff_v,efs_alt{ti},ati(ti),taus_alt{ti},trace_v,sti(ti),ti, Dt, A, baseline_v + sum(v));
                 [si_, vi_, diff_v_] = addSpike_ar(si_,vi_,diff_v_,ef_,ati(ti),tau_,trace_v,sti(ti),ti, Dt, A, baseline_v + sum(v));
                 
-%                 if any(vi_<-1e-6)
-%                 figure(100)
-%                 plot(vi_)
-%                 keyboard
-%                 end
             
                 %accept or reject
                 prior_ratio = 1;
@@ -1112,11 +1058,6 @@ for i = 1:nsweeps
                 [si_, vi_, diff_v_] = removeSpike_ar(sti,v_alt,diff_v,efs_alt{ti},ati(ti),taus_alt{ti},trace_v,sti(ti),ti, Dt, A, baseline_v + sum(v));
                 [si_, vi_, diff_v_] = addSpike_ar(si_,vi_,diff_v_,ef_,ati(ti),tau_,trace_v,sti(ti),ti, Dt, A, baseline_v + sum(v));
                 
-%                 if any(vi_<-1e-6)
-%                 figure(100)
-%                 plot(vi_)
-%                 keyboard
-%                 end
             
                 %accept or reject
                 prior_ratio = 1;
@@ -1230,12 +1171,10 @@ for i = 1:nsweeps
         for ki = 1:K %the guy to swap from
             tmp = setdiff(1:K,ki);
             kj = tmp(randi(numel(tmp)));
-%             kj = randi(K,1);
             if isempty(Spk{ki}) || isempty(Spk{kj})
                 continue
             else
                 tmpi1 = randi(N(ki));%pick one of the spikes at random
-%                 tmpi2 = randi(N(kj));%pick one of the spikes at random
                 [~, tmpi2] = min( abs(Spk{ki}(tmpi1)-Spk{kj}) );% pick nearest spike
             end
 
@@ -1267,13 +1206,9 @@ for i = 1:nsweeps
                 continue
             else
                 %proposal for calcium
-%                 a_init1 = max(traces_c(kj,max(1,floor(tmpj1)))/A - baseline_c(kj),a_c_min);%propose an initial amplitude for it
-%                 a_init1 = a_c{ki}(tmpi1);
                 a_init1 = a_c{kj}(tmpi2);
                 [ssi_j, ci_j, logC_kj] = addSpike(ssi_j,ci_j,logC_kj,efs_c{kj},a_init1,taus_c{kj},traces_c(kj,:),tmpj1,N(kj), Dt, A, tmpj1);
 
-%                 a_init2 = max(traces_c(ki,max(1,floor(tmpj2)))/A - baseline_c(ki),a_c_min);%propose an initial amplitude for it
-%                 a_init2 = a_c{kj}(tmpi2);
                 a_init2 = a_c{ki}(tmpi1);
                 [ssi_i, ci_i, logC_ki] = addSpike(ssi_i,ci_i,logC_ki,efs_c{ki},a_init2,taus_c{ki},traces_c(ki,:),tmpj2,N(ki), Dt, A, tmpj2);
                 
@@ -1292,9 +1227,6 @@ for i = 1:nsweeps
             ratio_c_i = exp(sum((1/(2*cNoiseVar(ki)))*(logC_ki-logC(ki))));
             ratio_c_j = exp(sum((1/(2*cNoiseVar(kj)))*(logC_kj-logC(kj))));
             ratio = ratio_c_i*ratio_c_j*ratio_v*prior_ratio;
-%             if ki == 3 && i == 100
-%                 keyboard
-%             end
                 
             if (ratio>1)||(ratio>rand) %accept
                 Spk{ki} = ssi_i;
@@ -1340,11 +1272,6 @@ for i = 1:nsweeps
             %proposal for voltage
             [si_i, vi_i, diff_v_] = removeSpike_ar(sti,v_alt,diff_v,efs_alt{tmpi},ati(tmpi),taus_alt{tmpi},trace_v,sti(tmpi),tmpi, Dt, A, baseline_v + sum(v));
 
-%             if any(vi_i<-1e-6)
-%             figure(100)
-%             plot(vi_)
-%             keyboard
-%             end
             
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Add (to kj)

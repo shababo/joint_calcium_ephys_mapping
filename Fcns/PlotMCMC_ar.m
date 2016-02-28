@@ -21,8 +21,8 @@ end
 MTm = mean(modelledTrace);
 MTs = std(modelledTrace);%estimation noise
 plot(MTm,'g');
-%Liams idea: posterior uncertaubnty which is the sum of uncertainty in
-%Ca signal + inherent noise of calcium signal
+%posterior uncertainty, which is the sum of uncertainty in
+%trace + inherent noise of trace
 plot(MTm+2*(final_std+MTs),'r--'); 
 plot(MTm-2*(final_std+MTs),'r--'); 
 hold off

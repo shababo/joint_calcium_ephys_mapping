@@ -1,5 +1,4 @@
 function [new_trace, logC] = remove_line_noise(trace,phi,a_s,theta,obs)
-
     
 new_trace = trace - a_s*sin(((1:length(trace))*theta + phi)*2*pi);
 
