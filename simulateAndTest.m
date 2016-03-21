@@ -1,8 +1,12 @@
 addpath('./Fcns/')
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Simulate data from model
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% This code is intended to be run as cell blocks
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Simulate presynaptic data (as in Calcium imaging)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Simulate K calcium imaging observed neurons
 K = 6;
@@ -104,9 +108,9 @@ plot(C' + 3000*repmat(0:(K-1),T,1))
 subplot(212)
 plot(Y' + 3000*repmat(0:(K-1),T,1))
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Simulate patched cell
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Simulate (postsynaptic) patched cell
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % V_t = [sum_ij a_ij k_j(t-t_ij-d_j)] + sum_i a_i k_i(t-t_i) + noise.
 
@@ -177,8 +181,51 @@ plot(V_o)
 % there are ephys only params -- noise, time constants of each neuron's response, delays (omitted)
 % there are joint parameters -- spike times, connection strength
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Inference based on postsynaptic (ephys data only) 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% skip if interested in joint inference only
 
-%% inference w/r/t joint likelihood.
+params.p_spike = 5.0000e-04/2;
+params.tau_min = 5; %bins
+params.tau_max = 100; %bins
+params.dt = binSize*1e-3; % in terms of calcium part
+params.p = 2;
+params.a_min = 2;
+params.eb = 0; % exclusion bound between spikes (in units of calcium bins)
+Tguess = [];
+tau = tau_post;
+
+trace = V_o;
+
+subset = 1:3e4; % in order to go faster, use only subset of the trace
+
+[trials, mcmc, params]  = sampleParams_ARnoise(trace(subset), tau, Tguess, params);
+
+%% visualize (last sample and true visualized here for simplicity)
+%...note last sample doesn't always capture posterior events accurately
+% NOTE: it is useful to view this figure as a wide and short window
+
+
+
+% PlotMCMC_ar %requires storing curves (commented out in
+% sampleParams_ARnoise...only okay for small example)
+
+convBinPre2s = binSize*1e-3;
+convBinPost2s = binSize_post*1e-3;
+
+true_spikes = cell2mat(Spk)*convBinPre2s; %in seconds
+true_spikes = true_spikes(true_spikes<max(subset)*convBinPost2s);
+figure;plot(convBinPost2s*subset,trace(subset),'k')
+hold on
+plot(convBinPost2s*trials.times{end},max(trace(1:3e4))*ones(1,length(trials.times{end})),'r.','markersize',10)
+plot(true_spikes,max(trace(1:3e4))*ones(1,length(true_spikes)),'ro','markersize',10)
+hold off
+set(gcf,'position',[1848, 452, 1071, 230])
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% inference w/r/t joint likelihood (using presynaptic and postsynaptic data)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % inputs: V_o - voltage... Y - calcium... initial vals of taus, initial
 % vals of times, other params
@@ -262,7 +309,5 @@ set(gca,'ytick',[])
 
 % exportfig(gcf,['example_partial_obs_joint.eps'],'bounds','tight','Color','rgb','FontSize',1,'LockAxes',0);
 
-
-%% For post-synapse only inference, define params and use sampleParams_ARnoise
 
 
