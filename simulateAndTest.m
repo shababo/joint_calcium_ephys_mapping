@@ -194,13 +194,12 @@ params.p = 2;
 params.a_min = 2;
 params.eb = 0; % exclusion bound between spikes (in units of calcium bins)
 Tguess = [];
-tau = tau_post;
 
 trace = V_o;
 
 subset = 1:3e4; % in order to go faster, use only subset of the trace
 
-[trials, mcmc, params]  = sampleParams_ARnoise(trace(subset), tau, Tguess, params);
+[trials, mcmc, params]  = sampleParams_ARnoise(trace(subset), tau_post, Tguess, params);
 
 %% visualize (last sample and true visualized here for simplicity)
 %...note last sample doesn't always capture posterior events accurately
@@ -231,7 +230,6 @@ set(gcf,'position',[1848, 452, 1071, 230])
 % vals of times, other params
 
 % want: times, time constants, baselines, amplitudes, noise
-
 params.p_spike = 5.0000e-04;
 params.tau_v_min = 5; %bins
 params.tau_v_max = 100; %bins
