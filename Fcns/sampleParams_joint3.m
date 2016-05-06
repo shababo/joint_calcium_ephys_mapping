@@ -1500,7 +1500,7 @@ for i = 1:nsweeps
         end
         e = e((p+1):end);
 
-        Phi_n = Phi_0 + vNoiseVar^(-1)*(E'*E); %typo in paper
+        Phi_n = Phi_0 + vNoiseVar^(-1)*(E'*E); %typo in ref '94 paper
 
         phi_cond_mean = Phi_n\(Phi_0*phi_0 + vNoiseVar^(-1)*E'*e);
 
