@@ -1,7 +1,6 @@
 function [trials, mcmc, params]  = sampleParams_ARnoise_splittau(trace,tau, Tguess, params)
 %parameters
 
-
 %noise level here matters for the proposal distribution (how much it 
 %should trust data for proposals vs how much it should mix based on uniform prior)
 NoiseVar_init=5; %inial noise estimate
@@ -24,14 +23,14 @@ a_max = Inf;
 b_std = 2; %propasal variance of baseline  % was at 0.3 ... increased it for in vivo data
 b_min = -50;
 b_max = 50;
-exclusion_bound = 1;%dont let bursts get within x bins of eachother. this should be in time
+exclusion_bound = 1;%dont let events get within x bins of eachother. this should be in time
 
 Dt=1; %bin unit - don't change this
 A=1; % scale factor for all magnitudes for this trace data setup
 % b=0; %initial baseline value
 b=min(trace); %initial baseline value
-nu_0 = 5; %prior on shared burst time - ntrials
-sig2_0 = .1; %prior on shared burst time - variance
+nu_0 = 5; %prior on noise - ntrials
+sig2_0 = .1; %prior on noise - variance
 
 %noise model is AR(p)
 if isfield(params, 'p')
@@ -44,9 +43,9 @@ phi_0 = zeros(p,1);
 Phi_0 = 10*eye(p); %inverse covariance 3
 
 adddrop = 5;
-%if we want to add bursts, whats the maximum bnumber that we will look for?
-% maxNbursts = length(Tguess);
-maxNbursts = Inf;
+%if we want to add events, whats the maximum bnumber that we will look for?
+% maxNevents = length(Tguess);
+maxNevents = Inf;
 
 indreport=.1:.1:1;
 indreporti=round(nsweeps*indreport);
@@ -71,13 +70,13 @@ objective = [];
 NoiseVar = NoiseVar_init; %separate trace per trial
 baseline = b;
 
-% intiailize burst train and predicted trace
+% intiailize events and predicted trace
 %this is based on simply what we tell it. 
 
 %initialize spikes and trace
-ati = []; % array of lists of spike times
-sti = []; % array of lists of spike times
-sti_ = []; % array of lists of spike times
+ati = []; % list of amplitudes
+sti = []; % list of spike times
+sti_ = []; % list of spike times
 taus = cell(1); % array of lists of event taus
 phi = [1 zeros(1,p)];
 
@@ -87,7 +86,6 @@ pr = b*ones(1,nBins); %initial trace is set to baseline
 
 N = length(sti); %number of spikes in spiketrain
 
-%initial logE - compute likelihood initially completely - updates to likelihood will be local
 %for AR(p) noise, we need a different difference inside the likelihood
 diffY = (trace-pr); %trace - prediction
 
@@ -128,12 +126,12 @@ for i = 1:nsweeps
 %         disp(length(ati))
 %     end
     
-    % do burst time moves
+    % do event time moves
     for ii = 1:3
         %guess on time and amplitude
         si = sti;
         ai = ati;
-        for ni = 1:N%for each burst
+        for ni = 1:N%for each event
             tmpi = si(ni);
             tmpi_ = si(ni)+(proposalVar*randn); %add in noise 
             % bouncing off edges
@@ -144,13 +142,12 @@ for i = 1:nsweeps
                     tmpi_ = nBins-(tmpi_-nBins);
                 end
             end
-            %if its too close to another burst, reject this move
+            %if its too close to another event, reject this move
             if any(abs(tmpi_-si([1:(ni-1) (ni+1):end]))<exclusion_bound)
                 continue
             end
 
             %create the proposal si_ and pr_
-            %update logE_ to adjusted
             [si_, pr_, diffY_] = removeSpike_ar(si,pr,diffY,efs{ni},ai(ni),taus{ni},trace,tmpi,ni, Dt, A);
             [si_, pr_, diffY_] = addSpike_ar(si_,pr_,diffY_,efs{ni},ai(ni),taus{ni},trace,tmpi_,ni, Dt, A);
 
@@ -181,7 +178,7 @@ for i = 1:nsweeps
     end
 
     
-    % update amplitude of each burst
+    % update amplitude of each event
     for ii = 1:5
         si = sti; 
         ai = ati;
@@ -197,7 +194,7 @@ for i = 1:nsweeps
                 end
             end
 
-            %set si_ to set of bursts with the move and pr_ to adjusted trace and update logE_ to adjusted
+            %set si_ to set of events with the move and pr_ to adjusted trace
             [si_, pr_, diffY_] = removeSpike_ar(si,pr,diffY,efs{ni},ai(ni),taus{ni},trace,si(ni),ni, Dt, A);
             [si_, pr_, diffY_] = addSpike_ar(si_,pr_,diffY_,efs{ni},tmp_a_,taus{ni},trace,si(ni),ni, Dt, A);
 
@@ -244,7 +241,7 @@ for i = 1:nsweeps
             end
         end
 
-        %set si_ to set of bursts with the move and pr_ to adjusted trace and update logE_ to adjusted
+        %set si_ to set of events with the move and pr_ to adjusted trace
         [pr_, diffY_] = remove_base_ar(pr,diffY,tmp_b,trace,A);   
         [pr_, diffY_] = add_base_ar(pr_,diffY_,tmp_b_,trace,A);
 
@@ -271,22 +268,22 @@ for i = 1:nsweeps
     %% this is the section that updates the number of spikes (add/drop)
     % loop over add/drop a few times
     %define insertion proposal distribution as the likelihood function
-    %define removal proposal distribution as uniform over bursts
+    %define removal proposal distribution as uniform over events
     %perhaps better is to choose smarter removals.
         for ii = 1:adddrop 
             %propose a uniform add
             %pick a random point
             tmpi = min(nBins)*rand;
-            %dont add if we have too many bursts or the proposed new location
+            %dont add if we have too many events or the proposed new location
             %is too close to another one
-            if ~(any(abs(tmpi-sti)<exclusion_bound) || N >= maxNbursts)
+            if ~(any(abs(tmpi-sti)<exclusion_bound) || N >= maxNevents)
                 sti_ = [sti tmpi];
-                %must add burst to each trial (at mean location or sampled -- more appropriate if sampled, but make sure no trial's burst violates exclusion)
+                %must add event to each trial (at mean location or sampled -- more appropriate if sampled, but make sure no trial's event violates exclusion)
                 diffY_ = diffY;
                 pr_ = pr;
                 ati_ = ati;
                 a_init = max(trace(max(1,floor(tmpi)))/A - baseline + a_std*randn,a_min);%propose an initial amplitude for it
-                [si_, pr_, diffY_] = addSpike_ar(sti,pr,diffY_,ef_init,a_init,tau,trace,tmpi, N+1, Dt, A); %adds all trials' bursts at same time
+                [si_, pr_, diffY_] = addSpike_ar(sti,pr,diffY_,ef_init,a_init,tau,trace,tmpi, N+1, Dt, A); %adds all trials' events at same time
                 sti_ = si_;
                 ati_ = [ati_ a_init];
                 fprob = 1/nBins(1);%forward probability
@@ -315,11 +312,11 @@ for i = 1:nsweeps
                 tmpi = randi(N);%pick one of the spikes at random
                 sti_ = sti;
                 sti_(tmpi) = [];
-                %must remove burst from each trial
+                %must remove event from each trial
                 diffY_ = diffY;
                 pr_ = pr;
                 ati_ = ati;
-                %always remove the ith burst (the ith burst of each trial is linked)                     
+                %always remove the ith event (the ith event of each trial is linked)                     
                 [si_, pr_, diffY_] = removeSpike_ar(sti,pr,diffY_,efs{tmpi},ati(tmpi),taus{tmpi},trace,sti(tmpi),tmpi, Dt, A);
                 sti_ = si_;
                 ati_(tmpi) = [];
@@ -472,7 +469,6 @@ for i = 1:nsweeps
 
         phi_cond_mean = Phi_n\(Phi_0*phi_0 + NoiseVar^(-1)*E'*e);
 
-%         keyboard
         sample_phi = 1;
         while sample_phi
             phi = [1 mvnrnd(phi_cond_mean,inv(Phi_n))];
@@ -491,7 +487,7 @@ for i = 1:nsweeps
     %%%%%%%%%%%%%%%%%%%%%
     % re-estimate the noise variance
     if ~isempty(sti)
-        df = (numel(pr)); %DOF (possibly numel(ci(ti,:))-1)
+        df = (numel(pr)); %DOF
         d1 = -predAR(diffY,phi,p,1)/df; 
         nu0 = nu_0; %nu_0 or 0
         d0 = sig2_0; %sig2_0 or 0
@@ -509,27 +505,13 @@ for i = 1:nsweeps
     N_sto = [N_sto N];
     samples_a{i} = ati; %trial amplitudes
     samples_b{i} = baseline; %trial baselines
-    samples_s{i} = sti; %shared bursts
+    samples_s{i} = sti;
     samples_pr{i} = pr; %save traces
     samples_tau{i} = taus; %save tau values
     samples_phi{i} = phi;
     samples_noise{i} = NoiseVar;
-    %store overall logliklihood as well
-%     if abs(sum(logE)-sum(sum(-(pr)-cell2mat(trace)).^2)))>1
-%         figure(90)
-%         subplot(121)
-%         plot(cell2mat(samples_c{i-1})')
-%         subplot(122)
-%         plot(cell2mat(pr)')
-%         keyboard
-%     end
 
     objective = [objective -predAR(diffY,phi,p,1)];
-%     figure(10);
-%     plot(diffY_)
-%     drawnow
-%     plot(ci{1});hold on;
-%     plot(CaF{1},'r');hold off
     if sum(ismember(indreporti,i))
         fprintf([num2str(indreport(ismember(indreporti,i)),2),', '])
     end
@@ -542,7 +524,7 @@ mcmc.timeMoves=timeMoves;
 mcmc.dropMoves=dropMoves;
 mcmc.ampMoves=ampMoves;
 mcmc.tauMoves=tauMoves;
-mcmc.N_sto=N_sto;%number of bursts
+mcmc.N_sto=N_sto;%number of events
 
 trials.amp=samples_a;
 trials.base=samples_b;

@@ -38,11 +38,11 @@ a_v_max = Inf;
 b_v_std = .3; %propasal variance of baseline
 b_v_min = 0;
 b_v_max = 30;
-exclusion_bound = params.eb;%dont let bursts get within x bins of eachother. this should be in time
+exclusion_bound = params.eb;%dont let events get within x bins of eachother. this should be in time
 nu_0 = 5; %prior on noise - ntrials
 sig2_0 = .1; %prior on noise - variance
 adddrop = 5;
-maxNbursts = Inf;
+maxNevents = Inf;
 
 useExtraChannel = 1;
 
@@ -140,7 +140,7 @@ N_sto = [];
 objective_v = [];
 objective_c = [];
 
-% intiailize burst train and predicted calcium
+% intiailize events and predicted calcium
 %this is based on simply what we tell it. 
 v = zeros(K,nBins_v); %initial voltage is set to voltage baseline 
 c = repmat(b_c,1,nBins_c); %initial voltage is set to voltage baseline 
@@ -214,7 +214,7 @@ swapMoves = [0 0];
 for i = 1:nsweeps
     
     %%%%%%%%%%%%%%%%%%%%%%%
-    % do burst time moves
+    % do event time moves
     %%%%%%%%%%%%%%%%%%%%%%%
     for ii = 1:3
         % for each neuron
@@ -236,7 +236,7 @@ for i = 1:nsweeps
                         tmpi_ = nBins_c-(tmpi_-nBins_c);
                     end
                 end
-                %if its too close to another burst, reject this move
+                %if its too close to another event, reject this move
                 if any(abs(tmpi_-ssi([1:(ti-1) (ti+1):end]))<exclusion_bound)
                     continue
                 end
@@ -304,7 +304,7 @@ for i = 1:nsweeps
                     tmpi_ = nBins_c-(tmpi_-nBins_c);
                 end
             end
-            %if its too close to another burst, reject this move
+            %if its too close to another event, reject this move
             if any(abs(tmpi_-sti([1:(ti-1) (ti+1):end])/conversion_ratio)<exclusion_bound)
                 continue
             end
@@ -344,7 +344,7 @@ for i = 1:nsweeps
     for ii = 1:5
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        % update amplitude of each burst - calcium
+        % update amplitude of each event - calcium
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
         % for each neuron
@@ -411,7 +411,7 @@ for i = 1:nsweeps
         
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        % update amplitude of each burst - ephys
+        % update amplitude of each event - ephys
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         % for each neuron
@@ -613,9 +613,9 @@ for i = 1:nsweeps
                 %propose a uniform add
                 %pick a random point
                 tmpi = min(nBins_c)*rand;
-                %dont add if we have too many bursts or the proposed new location
+                %dont add if we have too many events or the proposed new location
                 %is too close to another one
-                if ~(any(abs(tmpi-Spk{ki})<exclusion_bound) || N(ki) >= maxNbursts)                    
+                if ~(any(abs(tmpi-Spk{ki})<exclusion_bound) || N(ki) >= maxNevents)                    
                     
                     %proposal for calcium
                     if isempty(Spk{ki})
@@ -629,7 +629,6 @@ for i = 1:nsweeps
                     [~, vi_, diff_v_] = addSpike_ar(Spk{ki},v(ki,:),diff_v,efs_v{ki},a_v(ki),taus_v{ki},trace_v,conversion_ratio*tmpi,N(ki)+1, Dt, A, baseline_v + v_alt + sum(v)-v(ki,:));
 
                     %accept or reject     
-%                     prior_ratio = (m)/(N(ki)+1); %poisson prior
                     prior_ratio = (m)/(Nv+1); %poisson prior on post-synapse.
                     ratio_v = exp(sum((1/(2*vNoiseVar))*( predAR(diff_v_,phi,p,1) - predAR(diff_v,phi,p,1) )));   
                     ratio_c = exp(sum((1/(2*cNoiseVar(ki)))*(logC_(ki)-logC(ki))));
@@ -696,7 +695,7 @@ for i = 1:nsweeps
             % extra voltage channel
             %%%%%%%%%%%%%%%%%%%%%%%%
             tmpi = min(nBins_c)*rand;
-            if ~(any(abs(tmpi-sti)<exclusion_bound) || N_alt >= maxNbursts)
+            if ~(any(abs(tmpi-sti)<exclusion_bound) || N_alt >= maxNevents)
                 [si_, vi_, diff_v_] = addSpike_ar(sti,v_alt,diff_v,ef_v_init,a_v_init,tau_v,trace_v,conversion_ratio*tmpi,N_alt+1, Dt, A, baseline_v + sum(v));
                 ati_ = [ati a_v_init];
             
@@ -722,7 +721,7 @@ for i = 1:nsweeps
             if N_alt>0%i.e. we if have at least one spike           
                 %propose a uniform removal
                 tmpi = randi(N_alt);%pick one of the spikes at random
-                %always remove the ith burst (the ith burst of each trial is linked)                     
+                %always remove the ith event (the ith event of each trial is linked)                     
                 [si_, vi_, diff_v_] = removeSpike_ar(sti,v_alt,diff_v,efs_alt{tmpi},ati(tmpi),taus_alt{tmpi},trace_v,sti(tmpi),tmpi, Dt, A, baseline_v + sum(v));
             
                 %accept or reject
@@ -1115,7 +1114,7 @@ for i = 1:nsweeps
 
             tmpj = Spk{ki}(tmpi);
 
-            if (any(abs(tmpj-Spk{kj})<exclusion_bound) || N(kj) >= maxNbursts)  
+            if (any(abs(tmpj-Spk{kj})<exclusion_bound) || N(kj) >= maxNevents)  
                 continue
             else
                 %proposal for calcium
@@ -1133,8 +1132,6 @@ for i = 1:nsweeps
 
 
             %accept or reject     
-%             prior_ratio_i = (m)/(N(ki)+1); %poisson prior
-%             prior_ratio_j = (m)/(N(kj)+1); %poisson prior
             prior_ratio = 1;
             ratio_v = exp(sum((1/(2*vNoiseVar))*( predAR(diff_v_,phi,p,1) - predAR(diff_v,phi,p,1) )));   
             ratio_c_i = exp(sum((1/(2*cNoiseVar(ki)))*(logC_ki-logC(ki))));
@@ -1202,7 +1199,7 @@ for i = 1:nsweeps
             tmpj1 = Spk{ki}(tmpi1);
             tmpj2 = Spk{kj}(tmpi2);
 
-            if (any(abs(tmpj1-ssi_j)<exclusion_bound) || N(kj) >= maxNbursts) || (any(abs(tmpj2-ssi_i)<exclusion_bound) || N(ki) >= maxNbursts) 
+            if (any(abs(tmpj1-ssi_j)<exclusion_bound) || N(kj) >= maxNevents) || (any(abs(tmpj2-ssi_i)<exclusion_bound) || N(ki) >= maxNevents) 
                 continue
             else
                 %proposal for calcium
@@ -1220,8 +1217,6 @@ for i = 1:nsweeps
             end
             
             %accept or reject     
-%             prior_ratio_i = (m)/(N(ki)+1); %poisson prior
-%             prior_ratio_j = (m)/(N(kj)+1); %poisson prior
             prior_ratio = 1;
             ratio_v = exp(sum((1/(2*vNoiseVar))*( predAR(diff_v_,phi,p,1) - predAR(diff_v,phi,p,1) )));   
             ratio_c_i = exp(sum((1/(2*cNoiseVar(ki)))*(logC_ki-logC(ki))));
@@ -1279,7 +1274,7 @@ for i = 1:nsweeps
 
             tmpj = sti(tmpi)/conversion_ratio;
 
-            if (any(abs(tmpj-Spk{kj})<exclusion_bound) || N(kj) >= maxNbursts)  
+            if (any(abs(tmpj-Spk{kj})<exclusion_bound) || N(kj) >= maxNevents)  
                 continue
             else
                 %proposal for calcium
@@ -1347,10 +1342,6 @@ for i = 1:nsweeps
 
             tmpj = Spk{ki}(tmpi);
 
-%             if (any(abs(tmpj-sti)<exclusion_bound) || N_alt >= maxNbursts)  
-%                 continue
-%             else
-
             %proposal for voltage
             [sti_, vi_j, diff_v_] = addSpike_ar(sti,v_alt,diff_v_,efs_v{ki},a_v(ki),taus_v{ki},trace_v,conversion_ratio*tmpj,N_alt+1, Dt, A, baseline_v + sum(v) + vi_i - v(ki,:));
 %             end
@@ -1361,9 +1352,6 @@ for i = 1:nsweeps
             ratio_c_i = exp(sum((1/(2*cNoiseVar(ki)))*(logC_ki-logC(ki))));
             ratio = ratio_c_i*ratio_v*prior_ratio;
             
-%             if i == 100
-%                 keyboard
-%             end
             if (ratio>1)||(ratio>rand) %accept
                 Spk{ki} = ssi_i;
                 sti = sti_;
@@ -1424,7 +1412,7 @@ for i = 1:nsweeps
             tmpj1 = sti(tmpi1)/conversion_ratio;
             tmpj2 = Spk{kj}(tmpi2);
 
-            if (any(abs(tmpj1-ssi_j)<exclusion_bound) || N(kj) >= maxNbursts) || (any(abs(tmpj2-sti_/conversion_ratio)<exclusion_bound) || N_alt >= maxNbursts) 
+            if (any(abs(tmpj1-ssi_j)<exclusion_bound) || N(kj) >= maxNevents) || (any(abs(tmpj2-sti_/conversion_ratio)<exclusion_bound) || N_alt >= maxNevents) 
                 continue
             else
                 %proposal for calcium
@@ -1504,7 +1492,6 @@ for i = 1:nsweeps
 
         phi_cond_mean = Phi_n\(Phi_0*phi_0 + vNoiseVar^(-1)*E'*e);
 
-%         keyboard
         sample_phi = 1;
         while sample_phi
             phi = [1 mvnrnd(phi_cond_mean,inv(Phi_n))];
@@ -1541,7 +1528,7 @@ for i = 1:nsweeps
     if i>1
         for ki = 1:K
             df = (numel(c(ki,:))); %DOF (possibly numel(ci(ti,:))-1)
-            d1 = sum((c(ki,:)-traces_c(ki,:)).^2)/df; %ML - DOF, init, baseline and each burst amplitude
+            d1 = sum((c(ki,:)-traces_c(ki,:)).^2)/df; %ML - DOF, init, baseline and each event amplitude
             nu0 = nu_0; %nu_0 or 0
             d0 = sig2_0; %sig2_0 or 0
             
@@ -1617,7 +1604,7 @@ mcmc.dropMoves=dropMoves;
 mcmc.ampMoves=ampMoves;
 mcmc.tauMoves=tauMoves;
 mcmc.swapMoves=swapMoves;
-mcmc.N_sto=N_sto;%number of bursts
+mcmc.N_sto=N_sto;%number of events
 
 trials.amp_v=samples_a_v;
 trials.base_v=samples_b_v;
