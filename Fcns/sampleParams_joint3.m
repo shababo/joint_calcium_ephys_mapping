@@ -290,7 +290,7 @@ for i = 1:nsweeps
         %%%%%%%%%%%%%%%%%
         % extra one
         %%%%%%%%%%%%%%%%%
-        %for each event
+        %for each event     
         for ti = 1:N_alt  
 
             % select time update
